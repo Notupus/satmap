@@ -1,9 +1,8 @@
-# `pmap`
-***
+# pmap
 
 A python tool for projection and mapping of images from polar (and soon geosynchronous) orbiting satellites.
 
-**NOTE: THIS IS STILL INCREDIBABLY BUGGY AND PROBABLY WONT WORK PROPERLY YET**
+**NOTE: THIS IS STILL INCREDIBLY BUGGY AND PROBABLY WONT WORK PROPERLY YET**
 
 ## Features
 
@@ -37,7 +36,7 @@ sudo python3 setup.py
 Something like:
 
 ```
-time python3 main.py -t "2020-02-29 17:09:32" -i gqrx_20200229_170932_137103008-a.png -o N19-2020-02-29-mercator.png
+python3 main.py -t "2020-02-29 17:09:32" -i gqrx_20200229_170932_137103008-a.png -o N19-2020-02-29-mercator.png
 ```
 
 # Satellite params

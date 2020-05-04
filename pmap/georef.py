@@ -1,16 +1,17 @@
-from orbit_predictor import coordinate_systems
-from pmap.config import earth_radius
-from PIL import Image
 from math import *
 import datetime as dt
-from pmap.geomap import azimuth, reckon
+from orbit_predictor import coordinate_systems
+from PIL import Image
 from numba import jit
+
+from pmap.config import earth_radius, segment_size
+from pmap.geomap import azimuth, reckon
 
 '''
     x = map(x, in_min, in_max, out_min, out_max)
 
 Map `x` in the range [`in_min`, `in_max`] to the range
-[`out_min`, `out_max`]
+[`out_min`, `out_max`] and clamp it to the boundaries.
 '''
 @jit(nopython=True)
 def map(x, in_min, in_max, out_min, out_max):
@@ -23,9 +24,8 @@ def map(x, in_min, in_max, out_min, out_max):
     orbit = propergate_orbit(predictor, time, lines_per_second, rows)
 
 Calculate the satellite prediction for each row of an image, where
-`rows` is the number of rows to calculate, `lines_per_second` is
-the number of lines per second, `time` is the calculation start time
-and `predictor` is a orbit_predictor source. 
+`rows` is the number of rows to calculate, `time` is the calculation
+start time and `predictor` is a orbit_predictor source. 
 '''
 def propergate_orbit(predictor, time, lines_per_second, rows):
     orbit = []
@@ -35,45 +35,62 @@ def propergate_orbit(predictor, time, lines_per_second, rows):
     return orbit
 
 '''
-    map_image(image_file, output_file, output_size, extent, swath_size, time, lines_per_second, predictor)
+Turn a straight line of (segment_size) pixels from a source image into
+a non-straight line.
+'''
+def line_segment(dest, src, x, y, x1, y1, x2, y2):
+    # Gradient of output line
+    gradient = (y1-y2) / (x1-x2)
+    # Length of output line (in x axis)
+    x_length = ceil(abs(x1-x2))
 
-Turn a satellite image into a mercator mapped image, where `image_file` is
-the filename of the image, `output_file` is the filename of the output file,
-`output_size` is a tuple of width and height, `extent` is a tuple of the extent
-of the output image, `swath_size` is the width of the swath in km, `time` is a
-datetime object that represents the start of the image, `lines_per_second` is the
-number of lines per second and `predictor` is a orbit_predictor source.
+    # Follow along the line
+    for i in range(0, ceil(x_length)):
+        dest[x1+i, y1+(gradient*i)] = src[x+(i/x_length*segment_size), y]
+
+'''
+do something, idk what
 '''
 def map_image(image_file, output_file, output_size, extent, swath_size, predictor, time, lines_per_second):
-    # Image input
-    image = Image.open(image_file)
-    image = image.convert("RGB")
-    width, height = image.size
+    # Source image
+    src_image = Image.open(image_file)
+    src_image = src_image.convert("RGB")
+    src_width, src_height = src_image.size
+    src_pixels = src_image.load()
 
-    # Canvas
-    canvas = Image.new("RGBA", output_size)
-    pixels = canvas.load()
+    # Rendered image
+    dest_image = Image.new("RGBA", output_size)
+    dest_pixels = dest_image.load()
 
-    # Calculate angle of swath
+    # Calculate swath angle
     swath = swath_size / radians(earth_radius)
     
-    orbit = propergate_orbit(predictor, time, lines_per_second, height)
-    for y in range(1, height-1):
-        # Perpendicular angle of path
+    # Calculate the satellite orbit over the course of the image
+    orbit = propergate_orbit(predictor, time, lines_per_second, src_height)
+
+    # Warp the image
+    for y in range(1, src_height-1):
+        # Perpendicular angle of satellite path at this point
         angle = azimuth(orbit[y-1][0], orbit[y-1][1], orbit[y+1][0], orbit[y+1][1]) + 90
 
+        # Positions of segment edge in this row
+        positions = []
         range_angle = -swath/2
-        for x in range(0, width):
+        for x in range(0, src_width, segment_size):
             # Latitude and longitude of this pixel
-            lat, lon = reckon(orbit[y][0], orbit[y][1], range_angle, angle)
+            positions.append(reckon(orbit[y][0], orbit[y][1], range_angle, angle))
+            range_angle += (swath/src_width)*segment_size
 
-            # Move pixel
-            # TODO: a real transform, with something like matplotlib
-            pixels[map(lon, extent[0], extent[1], 0, output_size[0]), map(lat, extent[3], extent[2], 0, output_size[1])] = image.getpixel((x, height-y));
-            
-            range_angle += swath/width
-    
-    canvas.save(output_file);
+        # Do the deformation
+        for i in range(0, len(positions)-1):
+            line_segment(dest_pixels, src_pixels, i*segment_size, y,
+                map(positions[i][1], extent[0], extent[1], 0, output_size[0]),
+                map(positions[i][0], extent[3], extent[2], 0, output_size[1]),
+                map(positions[i+1][1], extent[0], extent[1], 0, output_size[0]),
+                map(positions[i+1][0], extent[3], extent[2], 0, output_size[1])
+            )
+
+    dest_image.save(output_file);
 
 def create_underlay(image_file, output_file, swath_size, predictor, time, lines_per_second, map_filename):
     # Image input
@@ -82,6 +99,7 @@ def create_underlay(image_file, output_file, swath_size, predictor, time, lines_
 
     mapimg = Image.open(map_filename)
     mapimg = mapimg.convert("RGB")
+    map_px = mapimg.load()
     mapw, maph = mapimg.size
     mapw /= 2
     maph /= 2
@@ -105,7 +123,7 @@ def create_underlay(image_file, output_file, swath_size, predictor, time, lines_
 
             # Move pixel
             # TODO: a real transform, with something like matplotlib
-            pixels[x, y] = px = mapimg.getpixel(((lon/180)*mapw + mapw, (-lat/90)*maph + maph))
+            pixels[x, y] = px = map_px[(lon/180)*mapw + mapw, (-lat/90)*maph + maph]
             
             range_angle += swath/width
     
