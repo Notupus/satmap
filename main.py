@@ -26,7 +26,7 @@ if(args.UPDATE):
     exit()
 
 # Load orbital parameters
-source = NoradTLESource.from_file(filename=args.FILENAME);
+source = NoradTLESource.from_file(filename=args.FILENAME)
 predictor = source.get_predictor(args.NAME)
 
 # String manipulation
@@ -36,22 +36,22 @@ size = args.SIZE.split("x")
 
 if(args.MAP_FILENAME is None):
     map_image(
-        args.IN_FILENAME, # Input file
+        args.IN_FILENAME,  # Input file
         args.OUT_FILENAME,
-        (int(size[0]), int(size[1])), # Output file size
-        (-180, 180, -90, 90), # Extent of the output image (min_lon, max_lon, min_lat, max_lat)
-        int(args.SWATH_SIZE), # Swath size in km
-        predictor, # The predictor
-        dt.datetime.fromisoformat(args.ISO_TIME), # Beginning of image
-        int(args.LINES_PER_SECOND) # Lines per second
+        (int(size[0]), int(size[1])),  # Output file size
+        (-180, 180, -90, 90),  # Extent of the output image (min_lon, max_lon, min_lat, max_lat)
+        int(args.SWATH_SIZE),  # Swath size in km
+        predictor,  # The predictor
+        dt.datetime.fromisoformat(args.ISO_TIME),  # Beginning of image
+        int(args.LINES_PER_SECOND)  # Lines per second
     )
 else:
     create_underlay(
-        args.IN_FILENAME, # Input file
+        args.IN_FILENAME,  # Input file
         args.OUT_FILENAME,
-        int(args.SWATH_SIZE), # Swath size in km
-        predictor, # The predictor
-        dt.datetime.fromisoformat(args.ISO_TIME), # Beginning of image
-        int(args.LINES_PER_SECOND), # Lines per second
+        int(args.SWATH_SIZE),  # Swath size in km
+        predictor,  # The predictor
+        dt.datetime.fromisoformat(args.ISO_TIME),  # Beginning of image
+        int(args.LINES_PER_SECOND),  # Lines per second
         args.MAP_FILENAME
     )

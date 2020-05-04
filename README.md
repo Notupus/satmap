@@ -33,20 +33,25 @@ sudo python3 setup.py
 
 ## Use
 
-Something like:
-
+To turn a image recorded at `2020-02-29 17:09:32` into a mappable version
 ```
 python3 main.py -t "2020-02-29 17:09:32" -i gqrx_20200229_170932_137103008-a.png -o N19-2020-02-29-mercator.png
 ```
 
-# Satellite params
+Or create an underlay for the same image:
+
+```
+python3 main.py -m mercator_map.jpg -t "2020-02-29 17:09:32" -i gqrx_20200229_170932_137103008-a.png -o N19-2020-02-29-mercator.png
+```
+
+# Satellite settings
 
  - NOAA APT
    - 2 lines per second
    - 2900km swath
  - Meteor-M LRPT
    - 6.52 lines per second
-   - 2800km swath (requires dewarping)
+   - 2800km swath (requires dewarping first)
 
 ## Resources
 
