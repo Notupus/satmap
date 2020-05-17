@@ -15,7 +15,7 @@ parser.add_argument('-T', help='path to TLE file', type=str, dest='FILENAME', de
 parser.add_argument('-t', help='time of the start of image (in ISO format)', type=str, dest='ISO_TIME', required=True)
 parser.add_argument('-n', help='name of satellite', type=str, dest='NAME', default="NOAA 19")
 parser.add_argument('-S', help='size of output image', type=str, dest='SIZE', default="2880x1440")
-parser.add_argument('-i', help='input filename', type=str, dest='IN_FILENAME', required=True)
+parser.add_argument('-i', help='input filename', type=str, dest='IN_FILENAME', required=False)
 parser.add_argument('-o', help='output filename', type=str, dest='OUT_FILENAME', required=True)
 parser.add_argument('-m', help='map filename (changes output type to underlay)', type=str, dest='MAP_FILENAME')
 
@@ -47,7 +47,7 @@ if(args.MAP_FILENAME is None):
     )
 else:
     create_underlay(
-        args.IN_FILENAME,  # Input file
+        (int(size[0]), int(size[1])),
         args.OUT_FILENAME,
         int(args.SWATH_SIZE),  # Swath size in km
         predictor,  # The predictor

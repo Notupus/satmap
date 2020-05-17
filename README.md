@@ -1,47 +1,39 @@
 # pmap
 
-A python tool for projection and mapping of images from polar (and soon geosynchronous) orbiting satellites.
+A python tool for projection and mapping of images from polar (and soon geosynchronous) orbiting satellites. It uses `OpenCV` allowing for high speed image manipulation.
 
 **NOTE: THIS IS STILL INCREDIBLY BUGGY AND PROBABLY WONT WORK PROPERLY YET**
 
 ## Features
 
-`pmap` is a tool for general purpose for manipulation of satellite images, being able to perform common operations to add useful information to images.
+`pmap` is a tool for general purpose for manipulation of satellite images, being able to perform common operations to add useful information to images. 
 
 Currently `pmap` can perform the following tasks:
 
- - (badly) Project images to Mercator earth projections
+ - Project images to Mercator earth projections
  - Create map underlays
 
-**DEMO IMAGES HERE**
+**DEMO IMAGES HERE (SOON)**
  
-## Install
+## Requirements
 
-Assuming everything wants to work, all dependencies can be installed via pip.
+All dependencies can be installed via pip.
 
 ```
 pip3 install -r requirements.txt
-```
-
-However I have had problems when installing `cartopy` from pip, this can be resolved by installing it directly from source.
-
-```
-pip3 install Cython
-git clone https://github.com/SciTools/Cartopy && cd Cartopy
-sudo python3 setup.py
 ```
 
 ## Use
 
 To turn a image recorded at `2020-02-29 17:09:32` into a mappable version
 ```
-python3 main.py -t "2020-02-29 17:09:32" -i gqrx_20200229_170932_137103008-a.png -o N19-2020-02-29-mercator.png
+python3 main.py -t "2020-02-29 17:09:32" -i gqrx_20200229_170932_137103008-1.png -o N19-2020-02-29-mercator.png
 ```
 
 Or create an underlay for the same image:
 
 ```
-python3 main.py -m mercator_map.jpg -t "2020-02-29 17:09:32" -i gqrx_20200229_170932_137103008-a.png -o N19-2020-02-29-mercator.png
+python3 main.py -m mercator_map.jpg -t "2020-02-29 17:09:32" -S 909x1562 -o N19-2020-02-29-underlay.png
 ```
 
 # Satellite settings

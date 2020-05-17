@@ -1,14 +1,16 @@
 from math import *
 import datetime as dt
 from orbit_predictor import coordinate_systems
-from PIL import Image
 from numba import jit
+import cv2
+import numpy as np
+from scipy.interpolate import interp1d
+
 from pmap.config import earth_radius, segment_size
 from pmap.geomap import azimuth, reckon
 
-
 @jit(nopython=True)
-def map(x, in_min, in_max, out_min, out_max):
+def map_clamp(x, in_min, in_max, out_min, out_max):
     '''
     x = map(x, in_min, in_max, out_min, out_max)
 
@@ -22,6 +24,48 @@ def map(x, in_min, in_max, out_min, out_max):
         return out_min
     return x
 
+@jit(nopython=True)
+def map_value(x, in_min, in_max, out_min, out_max):
+    '''
+    x = map(x, in_min, in_max, out_min, out_max)
+
+    Map `x` in the range [`in_min`, `in_max`] to the range
+    [`out_min`, `out_max`].
+    '''
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
+@jit(nopython=True)
+def latlon2px(lat, lon, width, height):
+    '''
+    Converts a lat/lon value to a point on a Mercator map.
+    Returns a tuple of (x, y).
+    '''
+    return (
+        (lon/180)*(width/2)+(width/2),
+        (-lat/90)*(height/2)+(height/2),
+    )
+
+def interp_zeros(arr):
+    '''
+    Replace zeros in an array the interpolated values between
+    the two extremes.
+    TODO: this is bad, and not very pythonic
+    '''
+    for i in range(0, len(arr)-1):
+        elements = np.nonzero(arr[i])
+        if len(elements[0]):
+            start = elements[0][0]
+            end = elements[0][-1]
+
+            y = arr[i][start:end]
+            y[0] = 1; y[-1] = 1
+
+            x = np.arange(len(y))
+            idx = np.nonzero(y)
+            interp = interp1d(x[idx], y[idx])
+            arr[i][start:end] = interp(x)
+    
+    return arr
 
 def propergate_orbit(predictor, time, lines_per_second, rows):
     '''
@@ -37,35 +81,18 @@ def propergate_orbit(predictor, time, lines_per_second, rows):
         time += dt.timedelta(seconds=1/lines_per_second)
     return orbit
 
-
-def line_segment(dest, src, x, y, x1, y1, x2, y2):
-    '''
-    Turn a straight line of (segment_size) pixels from a source image into
-    a non-straight line.
-    '''
-    # Gradient of output line
-    gradient = (y1-y2) / (x1-x2)
-    # Length of output line (in x axis)
-    x_length = ceil(abs(x1-x2))
-
-    # Follow along the line
-    for i in range(0, ceil(x_length)):
-        dest[x1+i, y1+(gradient*i)] = src[x+(i/x_length*segment_size), y]
-
-
 def map_image(image_file, output_file, output_size, extent, swath_size, predictor, time, lines_per_second):
     '''
     Sat image -> Mercator version of the image
     '''
     # Source image
-    src_image = Image.open(image_file)
-    src_image = src_image.convert("RGB")
-    src_width, src_height = src_image.size
-    src_pixels = src_image.load()
+    src = cv2.imread(image_file)
+    src_height, src_width = src.shape[:2]
 
-    # Rendered image
-    dest_image = Image.new("RGBA", output_size)
-    dest_pixels = dest_image.load()
+    # Deform mesh (for OpenCV)
+    xs, ys = np.meshgrid(np.zeros(output_size[0]), np.zeros(output_size[1]))
+    xs = xs.astype(np.float32)
+    ys = ys.astype(np.float32)
 
     # Calculate swath angle
     swath = swath_size / radians(earth_radius)
@@ -79,49 +106,38 @@ def map_image(image_file, output_file, output_size, extent, swath_size, predicto
         angle = azimuth(orbit[y-1][0], orbit[y-1][1], orbit[y+1][0], orbit[y+1][1]) + 90
 
         # Positions of segment edge in this row
-        positions = []
         range_angle = -swath/2
-        for x in range(0, src_width, segment_size):
+        for x in range(0, src_width):
             # Latitude and longitude of this pixel
-            positions.append(reckon(orbit[y][0], orbit[y][1], range_angle, angle))
-            range_angle += (swath/src_width)*segment_size
+            lat, lon = reckon(orbit[y][0], orbit[y][1], range_angle, angle)
+            
+            mapx = round(map_clamp(lon, extent[0], extent[1], 0, output_size[0]-1))
+            mapy = round(map_clamp(lat, extent[3], extent[2], 0, output_size[1]-1))
+            ys[mapy, mapx] = y
+            xs[mapy, mapx] = x
 
-        # Do the deformation
-        for i in range(0, len(positions)-1):
-            line_segment(dest_pixels, src_pixels, i*segment_size, y, map(positions[i][1], extent[0], extent[1], 0, output_size[0]), map(positions[i][0], extent[3], extent[2], 0, output_size[1]), map(positions[i+1][1], extent[0], extent[1], 0, output_size[0]), map(positions[i+1][0], extent[3], extent[2], 0, output_size[1]))
+            range_angle += swath/src_width
 
-    dest_image.save(output_file)
+    # Post process and write image
+    ys = interp_zeros(ys)
+    xs = interp_zeros(xs)
+    dest = cv2.remap(src, xs, ys, cv2.INTER_CUBIC)
+    cv2.imwrite(output_file, dest)
 
-
-@jit(nopython=True)
-def latlon2px(lat, lon, width, height):
-    '''
-    Converts a lat/lon value to a point on a Mercator map.
-    Returns a tuple of (x, y).
-    '''
-    return (
-        (lon/180)*(width/2)+(width/2),
-        (-lat/90)*(height/2)+(height/2),
-    )
-
-
-def create_underlay(image_file, output_file, swath_size, predictor, time, lines_per_second, map_filename):
+def create_underlay(size, output_file, swath_size, predictor, time, lines_per_second, map_filename):
     '''
     Make a map for a image
     '''
-    # Source image (only used for size)
-    src_image = Image.open(image_file)
-    src_width, src_height = src_image.size
+    src_width, src_height = size
 
     # Map image
-    map_image = Image.open(map_filename)
-    map_image = map_image.convert("RGB")
-    map_pixels = map_image.load()
-    map_width, map_height = map_image.size
+    src = cv2.imread(map_filename)
+    map_height, map_width = src.shape[:2]
 
-    # Rendered image
-    dest_image = Image.new("RGBA", (src_width, src_height))
-    dest_pixels = dest_image.load()
+    # Deform mesh (for OpenCV)
+    xs, ys = np.meshgrid(np.zeros(src_width), np.zeros(src_height))
+    xs = xs.astype(np.float32)
+    ys = ys.astype(np.float32)
 
     # Calculate angle of swath
     swath = swath_size / radians(earth_radius)
@@ -136,9 +152,10 @@ def create_underlay(image_file, output_file, swath_size, predictor, time, lines_
             # Latitude and longitude of this pixel
             lat, lon = reckon(orbit[y][0], orbit[y][1], range_angle, angle)
 
-            # Move a pixel
-            dest_pixels[x, y] = map_pixels[latlon2px(lat, lon, map_width, map_height)]
+            xs[y, x], ys[y, x] = latlon2px(lat, lon, map_width, map_height)
 
             range_angle += swath/src_width
 
-    dest_image.save(output_file)
+    # Write image
+    dest = cv2.remap(src, xs, ys, cv2.INTER_CUBIC)
+    cv2.imwrite(output_file, dest)
