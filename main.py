@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from pmap.georef import map_image
 import argparse
 import datetime as dt
@@ -8,7 +9,7 @@ from pmap.georef import map_image, create_underlay
 parser = argparse.ArgumentParser()
 parser.add_argument('-u', help='manually update TLE data', action='store_true', dest='UPDATE', default=False)
 parser.add_argument('-s', help='swath size of the satellite (in km)', type=int, dest='SWATH_SIZE', default=2800)
-parser.add_argument('-l', help='the number of lines per second', type=int, dest='LINES_PER_SECOND', default=2)
+parser.add_argument('-l', help='the number of lines per second', type=float, dest='LINES_PER_SECOND', default=2)
 parser.add_argument('-T', help='path to TLE file', type=str, dest='FILENAME', default="TLE/weather.tle")
 parser.add_argument('-a', help='top-left of the mapped image', type=str, dest='POS1', default="-180,-90")
 parser.add_argument('-b', help='bottom-right of the mapped image', type=str, dest='POS2', default="180,90")
@@ -32,6 +33,9 @@ source = NoradTLESource.from_file(filename=args.FILENAME)
 predictor = source.get_predictor(args.NAME)
 
 # String manipulation
+args.POS1 = args.POS1.replace("\\", "")
+args.POS2 = args.POS2.replace("\\", "")
+
 size = args.SIZE.split("x")
 topleft = args.POS1.split(",")
 bottomright = args.POS2.split(",")
@@ -45,7 +49,7 @@ if(args.MAP_FILENAME is None):
         int(args.SWATH_SIZE),  # Swath size in km
         predictor,  # The predictor
         dt.datetime.fromisoformat(args.ISO_TIME),  # Beginning of image
-        int(args.LINES_PER_SECOND),  # Lines per second
+        float(args.LINES_PER_SECOND),  # Lines per second
         float(args.SKEW)
     )
 else:
@@ -55,7 +59,7 @@ else:
         int(args.SWATH_SIZE),  # Swath size in km
         predictor,  # The predictor
         dt.datetime.fromisoformat(args.ISO_TIME),  # Beginning of image
-        int(args.LINES_PER_SECOND),  # Lines per second
+        float(args.LINES_PER_SECOND),  # Lines per second
         args.MAP_FILENAME,
         float(args.SKEW)
     )
