@@ -13,20 +13,27 @@ parser.add_argument('-l', help='the number of lines per second', type=float, des
 parser.add_argument('-T', help='path to TLE file', type=str, dest='FILENAME', default="TLE/weather.tle")
 parser.add_argument('-a', help='top-left of the mapped image', type=str, dest='POS1', default="-180,-90")
 parser.add_argument('-b', help='bottom-right of the mapped image', type=str, dest='POS2', default="180,90")
-parser.add_argument('-t', help='time of the start of image (in ISO format)', type=str, dest='ISO_TIME', required=True)
+parser.add_argument('-t', help='time of the start of image (in ISO format)', type=str, dest='ISO_TIME')
 parser.add_argument('-n', help='name of satellite', type=str, dest='NAME', default="NOAA 19")
 parser.add_argument('-S', help='size of output image', type=str, dest='SIZE', default="2880x1440")
-parser.add_argument('-i', help='input filename', type=str, dest='IN_FILENAME', required=False)
-parser.add_argument('-o', help='output filename', type=str, dest='OUT_FILENAME', required=True)
+parser.add_argument('-i', help='input filename', type=str, dest='IN_FILENAME')
+parser.add_argument('-o', help='output filename', type=str, dest='OUT_FILENAME')
 parser.add_argument('-m', help='map filename (changes output type to underlay)', type=str, dest='MAP_FILENAME')
 parser.add_argument('-r', help='rotation of satellite', type=float, dest='SKEW', default=1.5)
 
 
 args = parser.parse_args()
 
-if(args.UPDATE):
+if args.UPDATE:
     update_tle_data(False)
     exit()
+
+# FIXME: this is not the correct way to do this
+if args.TIME is none:
+    raise Exception("-t is a required argument")
+
+if args.OUT_FILENAME is none:
+    raise Exception("-o is a required argument")
 
 # Load orbital parameters
 source = NoradTLESource.from_file(filename=args.FILENAME)
