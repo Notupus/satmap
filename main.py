@@ -29,10 +29,10 @@ if args.UPDATE:
     exit()
 
 # FIXME: this is not the correct way to do this
-if args.ISO_TIME is none:
+if args.ISO_TIME is None:
     raise Exception("-t is a required argument")
 
-if args.OUT_FILENAME is none:
+if args.OUT_FILENAME is None:
     raise Exception("-o is a required argument")
 
 # Load orbital parameters
