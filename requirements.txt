@@ -2,4 +2,3 @@ numpy
 scipy
 orbit_predictor
 numba
-git+https://github.com/SciTools/cartopy.git@v0.18.0
