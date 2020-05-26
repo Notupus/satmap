@@ -29,7 +29,7 @@ if args.UPDATE:
     exit()
 
 # FIXME: this is not the correct way to do this
-if args.TIME is none:
+if args.ISO_TIME is none:
     raise Exception("-t is a required argument")
 
 if args.OUT_FILENAME is none:
