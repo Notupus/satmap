@@ -17,4 +17,4 @@ equtorial_radius = 6378.1  # https://en.wikipedia.org/wiki/Earth_radius#Publishe
 
 # Ground station
 location = None
-location = Location("London", latitude_deg=51.507222, longitude_deg=-0.1275, elevation_m=24)
+#location = Location("London", latitude_deg=51.507222, longitude_deg=-0.1275, elevation_m=24)
