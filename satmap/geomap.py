@@ -6,7 +6,6 @@ The `reckon` and `azimuth` functions are taken
 from `AptDecoder.ji` and ported to Python3.
 '''
 
-
 @jit(nopython=True)
 def azimuth(lat1, lon1, lat2, lon2):
     '''
@@ -25,7 +24,6 @@ def azimuth(lat1, lon1, lat2, lon2):
     alpha = atan(sin(alpha_delta) / (cos(lat1)*tan(lat2) - sin(lat1)*cos(alpha_delta)))
 
     return degrees(alpha)
-
 
 @jit(nopython=True)
 def reckon(lat, lon, range, azimuth):

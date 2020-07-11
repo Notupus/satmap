@@ -1,72 +1,49 @@
 #!/usr/bin/python3
-from pmap.georef import map_image
-import argparse
-import datetime as dt
 from orbit_predictor.sources import NoradTLESource
-from pmap.tle import update_tle_data
-from pmap.georef import map_image, create_underlay
+from orbit_predictor import coordinate_systems
+import datetime as dt
+from math import *
+import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-u', help='manually update TLE data', action='store_true', dest='UPDATE', default=False)
-parser.add_argument('-s', help='swath size of the satellite (in km)', type=int, dest='SWATH_SIZE', default=2800)
-parser.add_argument('-l', help='the number of lines per second', type=float, dest='LINES_PER_SECOND', default=2)
-parser.add_argument('-T', help='path to TLE file', type=str, dest='FILENAME', default="TLE/weather.tle")
-parser.add_argument('-a', help='top-left of the mapped image', type=str, dest='POS1', default="-180,-90")
-parser.add_argument('-b', help='bottom-right of the mapped image', type=str, dest='POS2', default="180,90")
-parser.add_argument('-t', help='time of the start of image (in ISO format)', type=str, dest='ISO_TIME')
-parser.add_argument('-n', help='name of satellite', type=str, dest='NAME', default="NOAA 19")
-parser.add_argument('-S', help='size of output image', type=str, dest='SIZE', default="2880x1440")
-parser.add_argument('-i', help='input filename', type=str, dest='IN_FILENAME')
-parser.add_argument('-o', help='output filename', type=str, dest='OUT_FILENAME')
-parser.add_argument('-m', help='map filename (changes output type to underlay)', type=str, dest='MAP_FILENAME')
-parser.add_argument('-r', help='rotation of satellite', type=float, dest='SKEW', default=1.5)
+from satmap.georef import make_map
+from satmap.config import location
 
+# FIXME: does this even work
+def isnorthbound(sat_pass):
+    aos = coordinate_systems.ecef_to_llh(predictor.get_only_position(sat_pass.aos))
+    los = coordinate_systems.ecef_to_llh(predictor.get_only_position(sat_pass.los))
+    return aos[1] < los[1]
+
+# Parse arguments
+parser = argparse.ArgumentParser(prog='satmap',
+                                 description='Make map overlays for polar satellites')
+
+parser.add_argument('filename', metavar='path', type=str,
+                    help='path to the output map')
+parser.add_argument('-s', '--satellite', dest='sat', type=str, default="NOAA 19",
+                    help='name of satellite')
+parser.add_argument('-t', '--time', dest='time', type=str, required=True,
+                    help='any time before the pass (ISO time)')
 
 args = parser.parse_args()
 
-if args.UPDATE:
-    update_tle_data(False)
-    exit()
+source = NoradTLESource.from_file(filename="TLE/weather.tle")
+predictor = source.get_predictor(args.sat)
 
-# FIXME: this is not the correct way to do this
-if args.ISO_TIME is None:
-    raise Exception("-t is a required argument")
+time = dt.datetime.fromisoformat(args.time)
 
-if args.OUT_FILENAME is None:
-    raise Exception("-o is a required argument")
+sat_pass = predictor.get_next_pass(location, when_utc=time)
+print("Satellite: {}\nPass start: {}\nDuration: {}s\nElevation: {}\nDirection: {}".format(
+    args.sat,
+    sat_pass.aos,
+    floor(sat_pass.duration_s),
+    round(sat_pass.max_elevation_deg),
+    "northbound" if isnorthbound(sat_pass) else "southbound"
+))
 
-# Load orbital parameters
-source = NoradTLESource.from_file(filename=args.FILENAME)
-predictor = source.get_predictor(args.NAME)
+sat_swath = 2935
+sat_lps = 2
+width = 909
+height = int(sat_pass.duration_s * sat_lps)
 
-# String manipulation
-args.POS1 = args.POS1.replace("\\", "")
-args.POS2 = args.POS2.replace("\\", "")
-
-size = args.SIZE.split("x")
-topleft = args.POS1.split(",")
-bottomright = args.POS2.split(",")
-
-if(args.MAP_FILENAME is None):
-    map_image(
-        args.IN_FILENAME,  # Input file
-        args.OUT_FILENAME,
-        (int(size[0]), int(size[1])),  # Output file size
-        (int(topleft[0]), int(bottomright[0]), int(topleft[1]), int(bottomright[1])),  # Extent of the output image (min_lon, max_lon, min_lat, max_lat)
-        int(args.SWATH_SIZE),  # Swath size in km
-        predictor,  # The predictor
-        dt.datetime.fromisoformat(args.ISO_TIME),  # Beginning of image
-        float(args.LINES_PER_SECOND),  # Lines per second
-        float(args.SKEW)
-    )
-else:
-    create_underlay(
-        (int(size[0]), int(size[1])),
-        args.OUT_FILENAME,
-        int(args.SWATH_SIZE),  # Swath size in km
-        predictor,  # The predictor
-        dt.datetime.fromisoformat(args.ISO_TIME),  # Beginning of image
-        float(args.LINES_PER_SECOND),  # Lines per second
-        args.MAP_FILENAME,
-        float(args.SKEW)
-    )
+make_map(predictor, sat_swath, sat_lps, width, height, sat_pass.aos, args.filename)

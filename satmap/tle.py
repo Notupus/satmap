@@ -2,7 +2,7 @@ import urllib.request
 import shutil
 import datetime as dt
 import os
-from pmap.config import tle_sources, auto_update_tle, notify_old_tle, tle_lifetime, tle_directory
+from satmap.config import tle_sources, auto_update_tle, notify_old_tle, tle_lifetime, tle_directory
 
 
 def update_tle_data(quiet):

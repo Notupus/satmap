@@ -2,3 +2,4 @@ numpy
 scipy
 orbit_predictor
 numba
+pyshp
